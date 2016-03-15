@@ -38,7 +38,7 @@
 
 var mongoose = require('mongoose');
 var _ = require('underscore');
-var fs = require('fs'), readline = require('readline');;
+var fs = require('fs'), readline = require('readline');
 
 var	ClinicalTrialMetadata = require('../../app/models/clinical-trial-metadata.server.model.js');
 var	Gene = require('../../app/models/gene.server.model.js');
@@ -70,7 +70,7 @@ function connectDB(callback123){
 function workers() {
     Gene.find({}).stream()
         .on('data', function(gene){
-            alterationCollections.push({gene: gene.hugo_symbol, alterations: ['mutated', 'mutant', 'aberration', 'fusion', 'expression']});
+            alterationCollections.push({gene: gene.hugo_symbol, alterations: ['mutated', 'mutant', 'aberration']});
         })
         .on('error', function(err){
             console.log('sorry but error occured ', err);
@@ -97,8 +97,8 @@ function worker1(){
             console.log('sorry but error occured ', err);
         })
         .on('end', function(){
-            console.log('sdfghjklfghjkl',alterationCollections);
-            //worker3();
+
+            worker3();
         })
 }
 

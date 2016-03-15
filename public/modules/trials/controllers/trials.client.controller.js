@@ -67,6 +67,18 @@ angular.module('trials').controller('TrialsController',
             $scope.inclusion_editing = false;
             $scope.exclusion_editing = false;
 
+            $scope.geneAliasOperation = false;
+            $scope.addGeneAlias = false;
+            $scope.saveGeneAlias = false;
+            $scope.delGeneAlias = false;
+            $scope.showNewAlias = false;
+            $scope.skipItemOperation = false;
+            $scope.addSkipItem = false;
+            $scope.saveSkipItem = false;
+            $scope.delSkipItem = false;
+            $scope.showNewSkipItem = false;
+            $scope.countNum = 10;
+
 
 
             String.prototype.capitalize = function() {
@@ -179,10 +191,41 @@ angular.module('trials').controller('TrialsController',
 
             // Find a list of Trials
             $scope.find = function () {
-                $scope.trials = Trials.nctId.query();
+                var trialsLength = 0;
+                Trials.nctId.query({},function(result){
+                    $scope.trials = result;
+                    trialsLength = result.length;
+
+                });
+
+
+                $(window).scroll(function() {
+                    if($(window).scrollTop() + $(window).height() == $(document).height()) {
+                        $scope.$apply(function(){
+                            if($scope.countNum < trialsLength){
+                                $scope.countNum += 10;
+                            }
+
+                        })
+
+                    }
+                });
+
             };
 
 
+            function fetchCancertypeInfo(nctId){
+                var tempArr1 = [], tempArr2 = [];
+                Cancertypes.cancerTypeInfo.get({nctId: nctId},function(result){
+
+                    _.each(result, function(item){
+                        tempArr1.push(item.cancer);
+
+                    });
+                    $scope.cancers = tempArr1;
+                    console.log(tempArr1);
+                });
+            }
 
 
             function fetchMapInfo(){
@@ -284,6 +327,7 @@ angular.module('trials').controller('TrialsController',
 
             // Find existing Trial
             $scope.findOne = function () {
+
                 $scope.trial = Trials.nctId.get({
                     nctId: $stateParams.nctId
                 },function()
@@ -302,6 +346,7 @@ angular.module('trials').controller('TrialsController',
                     });
 
                     fetchMapInfo();
+                    fetchCancertypeInfo($stateParams.nctId);
                     $scope.trialStatus = '1';
                     $scope.trialMappings = Mappings.mappingSearch.get({Idvalue: $stateParams.nctId}, function()
                     {
@@ -627,36 +672,111 @@ angular.module('trials').controller('TrialsController',
 
             }
 
-            //copy number bar chart
+            $scope.rulesInitiation = function(){
 
-            function plottyChart(){
+                Genes.getAlias.get({},function(result){
 
-                var tempTrace, data = [];
-                for(var i = 1;i < 100;i++){
-                    tempTrace = {x: [i, i],
-                        y: [80, 0],
-                        mode: 'lines',
-                        line:{
-                            color: 'rgb(0, 255, 0)'
+                    $scope.geneAlias = result;
+                });
+                Genes.getskipItems.get({},function(result){
 
-                        }};
-                    data.push(tempTrace);
+                    $scope.skipItems = result;
+                });
+            }
+
+            $scope.addRule = function(type, value){
+                if(type === 'alias'){
+                    $scope.geneAliasOperation = true;
+                    $scope.addGeneAlias = true;
+                    $scope.saveGeneAlias = false;
+                    $scope.delGeneAlias = false;
+                    $scope.showNewAlias = false;
+                    $scope.aliasGene = value;
+                    $scope.newAlias = '';
+                }
+                else if(type === 'skip'){
+                    $scope.skipItemOperation = true;
+                    $scope.addSkipItem = true;
+                    $scope.saveSkipItem = false;
+                    $scope.delSkipItem = false;
+                    $scope.showNewSkipItem = true;
+                    $scope.skipItem = false;
+                    $scope.newSkipItem = '';
                 }
 
-                var layout = {
-                    title:'Copy Number Segment Data Visualization',
-                    showlegend: false,
-                    width: 800,
-                    height: 300
-                };
+            }
+            $scope.deleteRule = function(type, value){
+                if(type === 'alias'){
+                    $scope.geneAliasOperation = true;
+                    $scope.delGeneAlias = true;
+                    $scope.addGeneAlias = false;
+                    $scope.saveGeneAlias = false;
+                    $scope.showNewAlias = false;
+                    $scope.aliasGene = value;
+                    $scope.newAlias = '';
+                }
+                else if(type === 'skip'){
+                    $scope.skipItemOperation = false;
+                    $scope.oriSkipItem = value;
+                    $scope.assignRule('skip', 'delete');
+                }
 
-                Plotly.newPlot('copyNumber', data, layout);
+            }
+            $scope.editRule = function(type, value){
+                if(type === 'alias'){
+                    $scope.geneAliasOperation = true;
+                    $scope.addGeneAlias = false;
+                    $scope.delGeneAlias = false;
+                    $scope.showNewAlias = true;
+                    $scope.saveGeneAlias = true;
+                    $scope.aliasGene = value;
+                }
+                else if(type === 'skip'){
+                    $scope.skipItemOperation = true;
+                    $scope.saveSkipItem = true;
+                    $scope.addSkipItem = false;
+                    $scope.delSkipItem = false;
+                    $scope.skipItem = true;
+                    $scope.showNewSkipItem = true;
+                    $scope.oriSkipItem = value;
+                    $scope.newSkipItem = '';
+                }
 
-                var grad = Gradient('#0071bc', '#662d91', '#e5005d', 10);
-                console.log(grad.toArray('hexString'));
+            }
 
-            };
-            //plottyChart();
+            $scope.assignRule = function(type, operation){
+
+                var tempStr;
+                if(type === 'alias'){
+                    if(operation === 'edit'){
+                        tempStr = $scope.aliasGene + ',' + $scope.alias + ',' + $scope.newAlias;
+                        $scope.newAlias = '';
+                        $scope.geneAliasOperation = false;
+                    }else{
+                        tempStr = $scope.aliasGene + ',' + $scope.alias;
+                        $scope.alias = '';
+                        $scope.geneAliasOperation = false;
+                    }
+                }else if(type === 'skip'){
+                    if(operation === 'edit'){
+                        tempStr = $scope.oriSkipItem + ',' + $scope.newSkipItem;
+                        $scope.skipItemOperation = false;
+
+                    }else if(operation === 'add'){
+                        tempStr = $scope.newSkipItem;
+                        $scope.skipItemOperation = false;
+
+                    }else if(operation === 'delete'){
+                        tempStr = $scope.oriSkipItem;
+                    }
+
+                }
+                Genes.assignRule.get({type: type, operation: operation, values: tempStr}, function(result){
+                    $scope.rulesInitiation();
+                });
+
+            }
+
 
         }
     ]);
