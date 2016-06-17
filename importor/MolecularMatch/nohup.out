@@ -1,0 +1,18 @@
+Last login: Mon Jun 13 12:14:06 2016 from lski1904.mskcc.org
+[?1034h-bash-4.1$ jGtpqm5&a
+[1] 41617
+-bash: jGtpqm5: command not found
+-bash: a: command not found
+[1]+  Exit 127                jGtpqm5
+-bash-4.1$ 
+-bash-4.1$ 
+-bash-4.1$ ^C
+-bash-4.1$ ^C
+-bash-4.1$ ^C
+-bash-4.1$ Last login: Tue Jun 14 11:40:38 2016 from lski1904.mskcc.org
+[?1034h-bash-4.1$ tcsetattr: Bad file descriptor
+Connection to dashi-dev.cbio.mskcc.org closed by remote host.
+Connection to dashi-dev.cbio.mskcc.org closed.
+tcsetattr: Bad file descriptor
+Connection to dashi-dev.cbio.mskcc.org closed by remote host.
+Connection to dashi-dev.cbio.mskcc.org closed.

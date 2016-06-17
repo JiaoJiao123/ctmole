@@ -1,8 +1,8 @@
 <br/><br/><br/>
-<section data-ng-controller="HomeController" data-ng-init="find()">
+<section data-ng-controller="HomeController" data-ng-init="find()" class="container">
 
 
-    <div class="col-md-2" ng-show="showResult" style="position:absolute;left:10px;top:50px;height:100%">
+    <div class="col-md-3" ng-show="showResult">
 
         <h4>Curation Status</h4>
 
@@ -53,8 +53,7 @@
         </small>
         <br/><br/>
     </div>
-    <div class="container col-md-10" style="float:right">
-        <div class="text-center">
+    <div ng-class="{true:'col-md-9', false:'col-md-12 text-center'}[showResult]">
             Gene:
             <select chosen
                     ng-model="searchValues.gene"
@@ -72,12 +71,19 @@
                     data-placeholder="Enter An Alteration">
                 <option value=""></option>
             </select>
-            Tumor Type: <input ng-model="searchValues.tumorType">
+            Tumor Type:  
+            <select chosen
+                    ng-model="searchValues.tumorType"
+                    ng-options="m as m for m in tumorTypesInput"
+                    class="chosen-select"
+                    data-placeholder="Enter A Tumortype">
+                <option value=""></option>
+            </select>
             <br/><br/>
-            Other Content: <input ng-model="searchValues.otherContent" size="50">
+            Other Content For General Search: <input ng-model="searchValues.otherContent" size="70">
             <button type="button" ng-click="searchTrials()" class="btn btn-default">Search</button>
-        </div>
-
+    </div>
+    <div class="col-md-9">
         <br/><br/>
         <div ng-if="loading">
             <img class="loadingLogo" src="modules/core/img/loaders/loading.gif">
@@ -90,7 +96,7 @@
                     <h3>{{trial.title}}</h3>
                     <h3><small><p class="lead">{{trial.nctId}} <br/> {{trial.phase}}<br/> {{trial.recruitingStatus}}<br/> {{trial.countries.join(', ')}}</p></small></h3>
                     <div >
-                        <div ng-if="trial.fetchedAlterations.length > 0" style="max-width:100%;overflow-x: scroll">
+                        <div ng-if="trial.fetchedAlterations.length > 0" style="max-width:100%;overflow-x: auto">
                             <h1><small>
                                     <span ng-class="{true:'label-success', false:'label-warning'}[x.curationMethod === 'manually' || x.status === 'confirmed']" class="label floatStyle" ng-repeat="x in trial.fetchedAlterations">{{x.gene + "     " + x.alteration}}</span>
                                 </small></h1>         
@@ -111,9 +117,11 @@
 
     <div ng-show="!showResult">
         <div class="panel panel-default plotlyChart">
-            <div class="panel-heading">Total # of Genomically Defined Clinical Trails: {{trialsMappingCount}}</div>
-            <div class="panel-body chartOverflow"  id="geneTrails" >
+            <div class="panel-heading">Total # of Genomically Defined Clinical Trails in the US: {{trialsMappingCount}}</div>
+            <div class="panel-body chartOverflow">
                 <img src="modules/core/img/loaders/loading.gif" class="loadingLogo" ng-if="loadingGeneData">
+                <p ng-if="!loadingGeneData" style="font-style: italic;font-size:12px">* Only trials with Recruiting or Not yet recruiting status</p>
+                <div id="geneTrails"></div>
             </div>
 
             <br/>
@@ -121,20 +129,22 @@
 
         <div class="panel panel-default plotlyChart">
             <div class="panel-heading">Total # of Cancer Associated Clinical Trials in the US: {{cancerTypeCounts}}</div>
-            <div class="panel-body chartOverflow" id="oncoKBtumorTypeTrials">
+            <div class="panel-body chartOverflow">
                 <img src="modules/core/img/loaders/loading.gif" class="loadingLogo" ng-if="loadingTumorData">
+                <p ng-if="!loadingTumorData" style="font-style: italic;font-size:12px">* Only trials with Recruiting or Not yet recruiting status</p>
+                <div id="oncoKBtumorTypeTrials"></div>
             </div>
             <br/>
         </div>
         <div class="panel panel-default plotlyChart">
-            <div class="panel-heading">Total # of Cancer Associated Clinical Trials in the US: 15, 014</div>
+            <div class="panel-heading">Total # of Cancer Associated Clinical Trials in the US: {{totalCount}}</div>
             <div class="panel-body pieChartStyle"  id="USTrials">
                 <img src="modules/core/img/loaders/loading.gif" class="loadingLogo" ng-if="loadingStatusData">
             </div>
             <br/>
         </div>
         <div class="panel panel-default plotlyChart">
-            <div class="panel-heading">Total # of Cancer Associated Clinical Trials in the US: 15, 014</div>
+            <div class="panel-heading">Total # of Cancer Associated Clinical Trials in the US: {{totalCount}}</div>
             <div class="panel-body pieChartStyle" id="curationStatus">
                 <img src="modules/core/img/loaders/loading.gif" class="loadingLogo" ng-if="loadingCurationStatusData">
             </div>

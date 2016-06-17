@@ -499,7 +499,7 @@ exports.geneTrialCounts = function (req, res) {
                                 var countedGenes = [];
                                 _.each(mapping.alterations, function (item) {
                                     //use geneIndex to make sure each gene only count once for each trial
-                                    var currentGene = item.gene;  
+                                    var currentGene = (item.gene !== "" ? item.gene : "unspecified");  
                                     var index = -1, geneIndex = countedGenes.indexOf(currentGene);
                                     for (var i = 0; i < geneTrialCountArr.length; i++)
                                     {

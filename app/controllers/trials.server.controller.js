@@ -138,61 +138,69 @@ exports.list = function (req, res) {
 };
 
 exports.searchTrials = function (req, res) {
-    var nctIds = [];
+    var nctIds = [], validStatusTrials = [];
     var geneInput = (req.params.gene === " " ? false : true);
     var alterationInput = (req.params.alteration === " " ? false : true);
     var tumorTypeInput = (req.params.tumorType === " " ? false : true);
     var otherContentInput = (req.params.otherContent === " " ? false : true);
-    if (geneInput || alterationInput) {
-        Mapping.find().stream()
-                .on('data', function (mapping) {
-                    if (mapping.alterations !== undefined && mapping.alterations.length !== 0)
-                    {
-                        for (var i = 0; i < mapping.alterations.length; i++) {
-                            //if there is gene input, test if it matches. if there is not, return true to skip test
-                            //same for alteration input 
-                            if ((geneInput ? mapping.alterations[i].gene.toUpperCase() === req.params.gene.toUpperCase() : true) && (alterationInput ? mapping.alterations[i].alteration.toUpperCase() === req.params.alteration.toUpperCase() : true)) {
-                                nctIds.push(mapping.nctId);
-                                break;
-                            }
-                        }
+    Trial.find({$and: [{countries: {$in: ['United States']}}, {$or: [{recruitingStatus: 'Recruiting'}, {recruitingStatus: 'Active, not recruiting'}]}]}).stream()
+            .on('data', function (trial) {
+                validStatusTrials.push(trial.nctId);
+            })
+            .on('error', function () {
+                console.log('error happened when searching valid status trials ');
+            })
+            .on('end', function () {
+                if (geneInput || alterationInput) {
+                    Mapping.find().stream()
+                            .on('data', function (mapping) {
+                                if (mapping.alterations !== undefined && mapping.alterations.length !== 0)
+                                {
+                                    for (var i = 0; i < mapping.alterations.length; i++) {
+                                        //if there is gene input, test if it matches. if there is not, return true to skip test
+                                        //same for alteration input 
+                                        if(req.params.gene === "unspecified")req.params.gene = "";
+                                        if ((geneInput ? mapping.alterations[i].gene.toUpperCase() === req.params.gene.toUpperCase() : true) && (alterationInput ? mapping.alterations[i].alteration.toUpperCase() === req.params.alteration.toUpperCase() : true)) {
+                                            nctIds.push(mapping.nctId);
+                                            break;
+                                        }
+                                    }
 
-                    }
-                })
-                .on('error', function (err) {
-                    // handle error
-                    console.log('error happened');
-                })
-                .on('end', function () {
-                    if (tumorTypeInput) {
-                        searchCancerTypes(req, res, nctIds, req.params.tumorType, req.params.otherContent, true);
-                    } else if (otherContentInput)
-                    { 
-                        generalSearch(req, res, nctIds, req.params.otherContent, true);
-                    } else {
-                        finalSearch(res, nctIds);
-                        
-                    }
+                                }
+                            })
+                            .on('error', function (err) {
+                                // handle error
+                                console.log('error happened');
+                            })
+                            .on('end', function () {
+                                validStatusTrials = _.uniq(validStatusTrials);
+                                nctIds = _.intersection(nctIds, validStatusTrials);
+                                if (tumorTypeInput) {
+                                    searchCancerTypes(res, nctIds, req.params.tumorType, req.params.otherContent, true, validStatusTrials);
+                                } else if (otherContentInput)
+                                {
+                                    generalSearch(res, nctIds, req.params.otherContent);
+                                } else {
+                                    finalSearch(res, nctIds);
 
-                });
-    } else if (tumorTypeInput) { 
-        searchCancerTypes(req, res, nctIds, req.params.tumorType, req.params.otherContent, false);
-    } else if (otherContentInput)
-    {    
-        generalSearch(req, res, nctIds, req.params.otherContent, false);
-    } else {
-        console.log('there is no input items');
-        res.jsonp();
-    }
+                                }
 
-
-
+                            });
+                } else if (tumorTypeInput) {
+                    searchCancerTypes(res, nctIds, req.params.tumorType, req.params.otherContent, false, validStatusTrials);
+                } else if (otherContentInput)
+                {
+                    generalSearch(res, validStatusTrials, req.params.otherContent);
+                } else {
+                    console.log('there is no input items');
+                    res.jsonp();
+                }
+            });
 };
-function searchCancerTypes(req, res, nctIds, tumorType, otherContent, BioMarkerFlag) {
+function searchCancerTypes(res, nctIds, tumorType, otherContent, BioMarkerFlag, validStatusTrials) {
     var nctIdsFromTumorType = [];
-    var finalExp = new RegExp(tumorType, 'i');
     //keep searching cancertype table
-    Cancertype.find({cancer: {$regex: finalExp}}).stream()
+    Cancertype.find({cancer: tumorType}).stream()
             .on('data', function (item) {
                 nctIdsFromTumorType = nctIdsFromTumorType.concat(item.nctIds);
             })
@@ -200,114 +208,123 @@ function searchCancerTypes(req, res, nctIds, tumorType, otherContent, BioMarkerF
                 console.log('Error happened when searching for tumor type ', error);
             })
             .on('end', function () {
-                if(BioMarkerFlag){
+                nctIdsFromTumorType = _.uniq(nctIdsFromTumorType);
+                nctIdsFromTumorType = _.intersection(nctIdsFromTumorType, validStatusTrials);
+                console.log('trials found in cancer type ', nctIdsFromTumorType.length);
+                if (BioMarkerFlag) {
                     nctIdsFromTumorType = _.intersection(nctIds, nctIdsFromTumorType);
-                } 
+                }
                 if (otherContent !== ' ')
                 {
-                    generalSearch(req, res, nctIdsFromTumorType, otherContent, true);
+                    generalSearch(res, nctIdsFromTumorType, otherContent);
                 } else {
                     finalSearch(res, nctIdsFromTumorType);
                 }
 
             });
 }
-function generalSearch(req, res, nctIds, otherContent, preciseFlag) { 
-    var keywords = otherContent;
-    var bits = keywords.split(/,|;/);
-    var tempIndex = 0, tempStr = '';
-    var finalPattern = '';
+function generalSearch(res, nctIds, otherContent) {
+//    var keywords = otherContent;
+//    var bits = keywords.split(/,|;/);
+//    var tempIndex = 0, tempStr = '';
+//    var finalPattern = '';
+//
+//    for (var i = 0; i < bits.length - 1; i++)
+//    {
+//        tempStr = bits[i].trim();
+//        finalPattern += '(?=.*' + tempStr + ')';
+//        finalPattern = '(' + finalPattern + ')';
+//        if (i === 0)
+//        {
+//            tempIndex += bits[i].length;
+//        } else
+//        {
+//            tempIndex += bits[i].length + 1;
+//        }
+//
+//        if (keywords[tempIndex] === ';') {
+//            finalPattern += '|';
+//        }
+//
+//    }
+//    tempStr = bits[bits.length - 1].trim();
+//    finalPattern += '(?=.*' + tempStr + ')';
+//
+//    var finalExp = new RegExp(finalPattern, 'i');
+//    Trial.find({$and: [{countries: {$in: ['United States']}}, {$or: [{recruitingStatus: 'Recruiting'}, {recruitingStatus: 'Active, not recruiting'}]}, {$or: [{nctId: {$regex: finalExp}},
+//            {title: {$regex: finalExp}},
+//            {purpose: {$regex: finalExp}},
+//            {recruitingStatus: {$regex: finalExp}},
+//            {eligibilityCriteria: {$regex: finalExp}},
+//            {phase: {$regex: finalExp}},
+//            {diseaseCondition: {$regex: finalExp}},
+//            {lastChangedDate: {$regex: finalExp}},
+//            {countries: {$regex: finalExp}},
+//            {drugs: {$regex: finalExp}},
+//            {tumorTypes: {$regex: finalExp}},
+//            {arm_group: {$regex: finalExp}}]} ]} )
 
-    for (var i = 0; i < bits.length - 1; i++)
-    {
-        tempStr = bits[i].trim();
-        finalPattern += '(?=.*' + tempStr + ')';
-        finalPattern = '(' + finalPattern + ')';
-        if (i === 0)
-        {
-            tempIndex += bits[i].length;
-        } else
-        {
-            tempIndex += bits[i].length + 1;
-        }
-
-        if (keywords[tempIndex] === ';') {
-            finalPattern += '|';
-        }
-
-    }
-    tempStr = bits[bits.length - 1].trim();
-    finalPattern += '(?=.*' + tempStr + ')';
-
-    var finalExp = new RegExp(finalPattern, 'i');
-
-    Trial.find({$or: [{nctId: {$regex: finalExp}},
-            {title: {$regex: finalExp}},
-            {purpose: {$regex: finalExp}},
-            {recruitingStatus: {$regex: finalExp}},
-            {eligibilityCriteria: {$regex: finalExp}},
-            {phase: {$regex: finalExp}},
-            {diseaseCondition: {$regex: finalExp}},
-            {lastChangedDate: {$regex: finalExp}},
-            {countries: {$regex: finalExp}},
-            {drugs: {$regex: finalExp}},
-            {tumorTypes: {$regex: finalExp}},
-            {arm_group: {$regex: finalExp}}]}).exec(function (err, trials) {
-        if (err) {
-            return res.status(400).send({
-                message: errorHandler.getErrorMessage(err)
-            });
-        } else {
-            if (trials.length === 0) {
-                console.log('no trials found');
-                res.jsonp();
-            } else {
-                var trialIds = _.map(trials, function (item) {
-                    return item.nctId;
-                });
-                if(preciseFlag){
-                    trialIds = _.intersection(trialIds, nctIds);
+    Trial.find({$text:{$search: otherContent}}).exec(function (err, trials) {
+                if (err) {
+                    return res.status(400).send({
+                        message: errorHandler.getErrorMessage(err)
+                    });
+                } else {
+                    if (trials.length === 0) {
+                        console.log('no trials found');
+                        res.jsonp();
+                    } else { console.log('result length ', trials.length);
+                        var trialIds = _.map(trials, function (item) {
+                            return item.nctId;
+                        });
+                        trialIds = _.intersection(trialIds, nctIds);
+                        finalSearch(res, trialIds);
+                    }
                 }
-                finalSearch(res, trialIds);
-            }
-        }
-    });
+            });
 }
 
 function finalSearch(res, trialIds) {
-    Trial.find({nctId: {$in: trialIds}}).exec(function (err, trials) {
+    Trial.find({nctId: {$in: trialIds}}, {nctId: 1, phase: 1, recruitingStatus: 1, countries: 1, title: 1, tumorTypes: 1}).exec(function (err, trials) {
         if (err) {
             return res.status(400).send({
                 message: errorHandler.getErrorMessage(err)
             });
         } else {
-             
-            var trialsNCTIDS = _.map(trials, function(item){return item.nctId;});
-            
+            var trialsNCTIDS = _.map(trials, function (item) {
+                return item.nctId;
+            });
+            //there are some duplication in the clinical trial database, need to clean up the data
+//            trialsNCTIDS = trialsNCTIDS.sort();
+//            for(var i = 0;i < trialsNCTIDS.length-1;i++){
+//                if(trialsNCTIDS[i] === trialsNCTIDS[i+1]){
+//                    console.log('duplicate ', trialsNCTIDS[i]);
+//                }
+//            }
             var diffArr = _.difference(trialIds, trialsNCTIDS);
-            if(diffArr.length > 0){
+            if (diffArr.length > 0) {
                 console.log('There are ', diffArr.length, " new trials need to fetch and save");
                 //there are some new trials not exist in trial table, need to fetch it first
                 saveNewTrials(res, trials, diffArr, 0);
-            }else{
+            } else {
                 console.log("No new trials need to save");
                 getMappingInfo(res, trials);
             }
-            
+
         }
     });
 }
 
-function saveNewTrials(res, trials, nctIds, index){
+function saveNewTrials(res, trials, nctIds, index) {
     var url = 'http://clinicaltrials.gov/ct2/show/' + nctIds[index] + '?displayxml=true';
     request(url, function (error, response, body) {
         parseString(body, {trim: true, attrkey: '__attrkey', charkey: '__charkey'}, function (err, metadata) {
             if (metadata !== undefined && metadata.hasOwnProperty('clinical_study')) {
                 metadata = metadata.clinical_study;
                 var drugsNeeded = [];
-                if(metadata.intervention !== undefined)
+                if (metadata.intervention !== undefined)
                 {
-                    _.each(metadata.intervention, function(item){
+                    _.each(metadata.intervention, function (item) {
                         drugsNeeded.push(item.intervention_name);
                     });
                 }
@@ -326,21 +343,22 @@ function saveNewTrials(res, trials, nctIds, index){
                     arm_group: (metadata.arm_group !== undefined) ? metadata.arm_group : ""});
 
 
-                trialRecord.save(function(err, newTrial){
-                    if(err)console.log('Error happened when saving to db', err);
-                    else{
+                trialRecord.save(function (err, newTrial) {
+                    if (err)
+                        console.log('Error happened when saving to db', err);
+                    else {
                         console.log('Insert', nctIds[index], ' into trial collection successfully');
                         trials.push(newTrial);
-                        if(index < nctIds.length - 1){
+                        if (index < nctIds.length - 1) {
                             index++;
-                            setTimeout(function(){
+                            setTimeout(function () {
                                 saveNewTrials(res, trials, nctIds, index);
                             }, 500);
-                        }else{
+                        } else {
                             getMappingInfo(res, trials);
                         }
-                        
-                    } 
+
+                    }
                 });
 
             } else {
@@ -360,17 +378,17 @@ function saveNewTrials(res, trials, nctIds, index){
     });
 }
 
-function getMappingInfo(res, trials){
-    var trialIds = _.map(trials, function(item){
+function getMappingInfo(res, trials) {
+    var trialIds = _.map(trials, function (item) {
         return item.nctId;
     });
     var altRecords = [], tempIndex = -1;
     Mapping.find({nctId: {$in: trialIds}}).stream()
             .on('data', function (mapping) {
                 _.each(mapping.alterations, function (item) {
-                    if(item.gene === ""){
-                        console.log('here are the empty genes ', mapping.nctId);
-                    }
+//                    if (item.gene === "") {
+//                        console.log('here are the empty genes ', mapping.nctId);
+//                    }
                     tempIndex = -1;
                     for (var i = 0; i < altRecords.length; i++)
                     {

@@ -58,7 +58,8 @@ angular.module('core').controller('HomeController', ['$scope', '$location', '$ro
         $scope.inComTrialIds = [];
         $scope.status = 4;
         $scope.recruit = '';
-        $scope.recruitingStatus = ['Not yet recruiting', 'Recruiting', 'Enrolling by invitation', 'Active, not recruiting', 'Completed', 'Others'];
+//        $scope.recruitingStatus = ['Not yet recruiting', 'Recruiting', 'Enrolling by invitation', 'Active, not recruiting', 'Completed', 'Others'];
+        $scope.recruitingStatus = ['Not yet recruiting', 'Recruiting'];
         $scope.chosenRecruits = ['Recruiting'];
         
         var allGenes = [], allAlts = [], allAlterations = [];
@@ -112,8 +113,8 @@ console.log('search gene ', $scope.searchValues);
 //            }
             //search in the trial table
             Trials.searchEngine.query({gene: $scope.searchValues.gene, alteration: $scope.searchValues.alteration, tumorType: $scope.searchValues.tumorType, otherContent: $scope.searchValues.otherContent}, function (data) {
+                console.log('all found data', data);
                 var trials = data.slice(0, data.length - 1);
-
                 if (trials.length === 0) {
                     bootbox.alert('Sorry no result found! Please change your input to restart search');
 
@@ -322,7 +323,6 @@ console.log('search gene ', $scope.searchValues);
         }
         
         $scope.find = function () {
-
             $scope.refineFlag = false;
             $scope.criteria = [{type: 'country', value: ['United States']}, {type: 'recruit', value: ['Recruiting']}];
             $scope.types = ['country', 'recruit'];
@@ -356,7 +356,7 @@ console.log('search gene ', $scope.searchValues);
                 $scope.inputAlterations = _.uniq(inputAlterations).sort();
                  
             });
-
+             
         };
         $scope.updateInputAlterations = function(){
             console.log('chosen gene ', $scope.searchValues.gene);
@@ -578,13 +578,15 @@ console.log('search gene ', $scope.searchValues);
 //
 //            });
             //criteria array is fine till here
-            console.log('here comes the chosen criteria ', $scope.criteria);
+        
         };
-
+        function numberWithCommas(x) {
+            return x.toString().replace(/\B(?=(\d{3})+(?!\d))/g, ",");
+        }
         function plottyChart() {
             //get the gene and trials infor
 
-            Mappings.geneTrialCounts.get({}, function (result) {
+            Mappings.geneTrialCounts.get({}, function (result) {  
                 $scope.loadingGeneData = false;
                 var geneTrace1 = {
                     y: _.map(result, function (item) {
@@ -610,7 +612,7 @@ console.log('search gene ', $scope.searchValues);
                     orientation: 'h'
                 };
                 var geneLayout = {barmode: 'stack',
-                    width: 450,
+                    width: $('#geneTrails').width(),
                     height: 15 * result.length,
                     margin: {
                         l: 125,
@@ -627,7 +629,7 @@ console.log('search gene ', $scope.searchValues);
                     tempNctIds.push(item.curated);
                 });
                 tempNctIds = _.uniq(tempNctIds);
-                $scope.trialsMappingCount = tempNctIds.length;
+                $scope.trialsMappingCount = numberWithCommas(tempNctIds.length);
                 
                 
                 var myPlot = document.getElementById("geneTrails");
@@ -640,28 +642,39 @@ console.log('search gene ', $scope.searchValues);
 
 
             Cancertypes.tumorTypes.get({}, function (result) {
-
                 result.sort(sortTumor);
                 $scope.loadingTumorData = false;
+                var allNctIds = [], tempTumorArr = [], hoverInfo = [];
+                _.each(result, function (item) {
+                    allNctIds = allNctIds.concat(item.nctIds);
+                    tempTumorArr.push(item.cancer);
+                    hoverInfo.push(item.cancer);
+                });
+                allNctIds = _.uniq(allNctIds);
+                $scope.tumorTypesInput = tempTumorArr.sort();
+                $scope.cancerTypeCounts = numberWithCommas(allNctIds.length);
+                
                 var tumorType = {
                     x: _.map(result, function (item) {
                         return item.nctIds.length;
                     }),
                     y: _.map(result, function (item) {
-                        return item.OncoKBCancerType;
+                        return item.cancer;
                     }),
                     type: 'bar',
+                    text: hoverInfo,
+                    hoverinfo: "x+text",
                     orientation: 'h'
 
                 };
 
                 var tumorLayout = {barmode: 'stack',
-                    width: 450,
+                    width: $('#oncoKBtumorTypeTrials').width(),
                     height: 20 * result.length,
                     yaxis: {
-                        tickangle: -30,
+                        tickangle: -45,
                         tickfont: {
-                            size: 8,
+                            size: 10,
                         }
                     },
                     margin: {
@@ -671,24 +684,20 @@ console.log('search gene ', $scope.searchValues);
                     }
                 };
 
-                var allNctIds = [];
-                _.map(result, function (item) {
-                    allNctIds = allNctIds.concat(item.nctIds);
-                });
-                allNctIds = _.uniq(allNctIds);
-                $scope.cancerTypeCounts = allNctIds.length;
+                
 
                 var tumorTypeData = [tumorType];
                 Plotly.newPlot('oncoKBtumorTypeTrials', tumorTypeData, tumorLayout, {displayModeBar: false});
                 
-//                var myPlot = document.getElementById("oncoKBtumorTypeTrials");
-//                myPlot.on('plotly_click', function (eventData) {
-//                    $scope.searchValues.tumorType = eventData.points[0].y;
-//                    $scope.searchTrials();
-//                });
+                var myPlot = document.getElementById("oncoKBtumorTypeTrials");
+                myPlot.on('plotly_click', function (eventData) {
+                    $scope.searchValues.tumorType = eventData.points[0].y;
+                    $scope.searchTrials();
+                });
             });
 
             Trials.recruitingStatusCount.get({}, function (result) {
+                $scope.totalCount = numberWithCommas(result.Not_yet_recruiting + result.Recruiting + result.Enrolling_by_invitation + result.Active_not_recruiting + result.Completed + result.Others);
                 $scope.loadingStatusData = false;
                 var layout = {barmode: 'stack'};
 
