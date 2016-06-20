@@ -1,0 +1,116 @@
+<br/><br/><br/>
+<section data-ng-controller="ResultController" data-ng-init="find()" class="container">
+    <div class="col-md-3">
+
+        <h4>Curation Status</h4>
+
+        <div class="radio">
+            <label><input type="radio" ng-model="status" value="4" ng-change="getCriteria('all', status, 'status')">All</label><br/>
+            <label><input type="radio" ng-model="status" value="1" ng-change="getCriteria(false, status, 'status')">Not Curated</label><br/>
+            <label><input type="radio" ng-model="status" value="2" ng-change="getCriteria(true, status, 'status')">In Progress</label><br/>
+            <label><input type="radio" ng-model="status" value="3" ng-change="getCriteria(true, status, 'status')">Completed</label>
+        </div>
+        <h4>Recruit Status</h4>
+        <div class="">
+            <div class="checkbox" ng-repeat="a in recruitingStatus">
+                <input id="{{a}}" ng-model="recruit" ng-change="getCriteria(recruit, a, 'recruit')" type="checkbox" ng-checked="chosenRecruits.indexOf(a) !== - 1"><label for="{{a}}"> {{a}}</label>
+            </div>
+        </div>
+        <h4>Location</h4>
+
+        <div ng-show="allCountries">
+            <select chosen multiple ng-options="x as x for x in countries" class="multiSelect" data-placeholder="Select Countries" ng-model="country" ng-change="getCriteria(country, country, 'country')">
+            </select>
+
+        </div>
+
+        <h4>Tumor Types</h4>
+        <select chosen multiple ng-options="m as m for m in tumorTypes" class="multiSelect" data-placeholder="Select Tumor Types" ng-model="tumor" ng-change="getCriteria(tumor, tumor, 'tumor')">
+        </select>
+
+
+
+        <h4>Gene</h4>
+        <div style="max-height:300px;overflow-y: scroll">
+            <div class="checkbox"  ng-repeat="y in genes">
+                <input id="{{y}}" ng-model="gene" ng-change="getCriteria(gene, y, 'gene')" type="checkbox" ng-checked="false"><label for="{{y}}"> {{y}}</label>
+            </div>
+        </div>
+
+        <h4>Mutation</h4>
+        <div style="max-height:300px;overflow-y: scroll">
+            <div class="checkbox" ng-repeat="z in mutations">
+                <input id="{{z}}" ng-model="mutation" ng-change="getCriteria(mutation, z, 'mutation')" type="checkbox" ng-checked="false"><label for="{{z}}"> {{z.gene + '   ' + z.alteration}}</label>
+            </div>
+        </div>
+        <br/>
+        <small>
+            <em class="text-muted">
+                Powered by OncoKB
+            </em>
+        </small>
+        <br/><br/>
+    </div>
+    <div ng-class="col-md-9">
+            Gene:
+            <select chosen
+                    ng-model="searchValues.gene"
+                    ng-options="m as m for m in HUGOgenes"
+                    ng-change="updateInputAlterations()"
+                    class="chosen-select"
+                    data-placeholder="Enter A Gene">
+                <option value=""></option>
+            </select>
+            Alteration:  
+            <select chosen
+                    ng-model="searchValues.alteration"
+                    ng-options="m as m for m in inputAlterations"
+                    class="chosen-select"
+                    data-placeholder="Enter An Alteration">
+                <option value=""></option>
+            </select>
+            Tumor Type:  
+            <select chosen
+                    ng-model="searchValues.tumorType"
+                    ng-options="m as m for m in tumorTypesInput"
+                    class="chosen-select"
+                    data-placeholder="Enter A Tumortype">
+                <option value=""></option>
+            </select>
+            <br/><br/>
+            Other Content For General Search: <input ng-model="searchValues.otherContent" size="70">
+            <button type="button" ng-click="searchTrials()" class="btn btn-default">Search</button>
+    </div>
+    <div class="col-md-9">
+        <br/><br/>
+        <div ng-if="loading">
+            <img class="loadingLogo" src="modules/core/img/loaders/loading.gif">
+        </div>
+
+        <div class="well list-group">
+            <h2>MATCHING TRIALS | {{filteredTrials.length}}</h2><br/>
+            <a data-ng-repeat="trial in filteredTrials = (trials| filter: searchCriteria())  | limitTo: countNum  " data-ng-href="#!/trials/{{trial.nctId}}" class="list-group-item">
+                <div>
+                    <h3>{{trial.title}}</h3>
+                    <h3><small><p class="lead">{{trial.nctId}} <br/> {{trial.phase}}<br/> {{trial.recruitingStatus}}<br/> {{trial.countries.join(', ')}}</p></small></h3>
+                    <div >
+                        <div ng-if="trial.fetchedAlterations.length > 0" style="max-width:100%;overflow-x: auto">
+                            <h1><small>
+                                    <span ng-class="{true:'label-success', false:'label-warning'}[x.curationMethod === 'manually' || x.status === 'confirmed']" class="label floatStyle" ng-repeat="x in trial.fetchedAlterations">{{x.gene + "     " + x.alteration}}</span>
+                                </small></h1>         
+                        </div>
+                    </div>
+                    <div ng-if="trial.fetchedAlterations.length === 0" >
+                        <p>No Alteration Info Available at this time</p>
+                    </div>
+                    <br/><br/><br/> 
+
+                </div>
+            </a>
+
+        </div>
+
+    </div>
+
+
+</section>

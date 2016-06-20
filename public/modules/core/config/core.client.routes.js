@@ -41,8 +41,12 @@ angular.module('core').config(['$stateProvider', '$urlRouterProvider',
 		// Home state routing
 		$stateProvider.
 		state('home', {
-			url: '/',
-			templateUrl: 'modules/core/views/home.client.view.html'
+                    url: '/',
+                    templateUrl: 'modules/core/views/home.client.view.html'
+		}).
+                state('result', {
+                    url: '/result',
+                    templateUrl: 'modules/core/views/result.client.view.html'
 		});
 	}
 ]);

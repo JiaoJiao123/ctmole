@@ -97,20 +97,7 @@ console.log('search gene ', $scope.searchValues);
             $scope.country = ['United States'];
 
             $scope.previousSearch = $scope.searchValues.otherContent;
-//            $location.search('status', '4');
-//            $location.search('country', 'United States');
-//            if ($scope.searchValues.gene !== ' ') {
-//                $location.search('gene', $scope.searchValues.gene);
-//            }
-//            if ($scope.searchValues.alteration !== ' ') {
-//                $location.search('alteration', $scope.searchValues.alteration);
-//            }
-//            if ($scope.searchValues.tumorType !== ' ') {
-//                $location.search('tumorType', $scope.searchValues.tumorType);
-//            }
-//            if ($scope.searchValues.otherContent !== ' ') {
-//                $location.search('otherContent', $scope.searchValues.otherContent);
-//            }
+
             //search in the trial table
             Trials.searchEngine.query({gene: $scope.searchValues.gene, alteration: $scope.searchValues.alteration, tumorType: $scope.searchValues.tumorType, otherContent: $scope.searchValues.otherContent}, function (data) {
                 console.log('all found data', data);
@@ -121,6 +108,22 @@ console.log('search gene ', $scope.searchValues);
                     $scope.loading = false;
                     return false;
                 } else {
+                    $location.path('/result');
+                    $location.search('status', '4');
+                    $location.search('country', 'United States');
+                    if ($scope.searchValues.gene !== ' ') {
+                        $location.search('gene', $scope.searchValues.gene);
+                    }
+                    if ($scope.searchValues.alteration !== ' ') {
+                        $location.search('alteration', $scope.searchValues.alteration);
+                    }
+                    if ($scope.searchValues.tumorType !== ' ') {
+                        $location.search('tumorType', $scope.searchValues.tumorType);
+                    }
+                    if ($scope.searchValues.otherContent !== ' ') {
+                        $location.search('otherContent', $scope.searchValues.otherContent);
+                    }
+
 
                     $(window).scroll(function () {
                         if ($(window).scrollTop() + $(window).height() === $(document).height()) {
@@ -338,24 +341,7 @@ console.log('search gene ', $scope.searchValues);
             _.each(document.getElementsByClassName('filterStyle'), function (item) {
                 item.style.maxHeight = (window.innerHeight - 620) / 2 + 'px';
             });
-            Alterations.allAlterations.get({}, function(data){
-                var tempIndex = -1, hugoGenes = [], inputAlterations = [];
-                for(var i = 0;i < data.length;i++){
-                    tempIndex = _.map(allAlterations, function(item){return item.gene;}).indexOf(data[i].gene);
-                    if(tempIndex === -1){
-                        allAlterations.push({gene: data[i].gene, alterations: [data[i].alteration]});
-                        hugoGenes.push(data[i].gene);
-                        
-                    }else{
-                        allAlterations[tempIndex].alterations.push(data[i].alteration);
-                    }
-                    inputAlterations.push(data[i].alteration);
-                   
-                }
-                $scope.HUGOgenes = hugoGenes.sort();
-                $scope.inputAlterations = _.uniq(inputAlterations).sort();
-                 
-            });
+
              
         };
         $scope.updateInputAlterations = function(){
@@ -729,6 +715,27 @@ console.log('search gene ', $scope.searchValues);
             });
 
         }
-        plottyChart();
+        //plottyChart();
+
+        $scope.initHomePage = function(){
+            Alterations.allAlterations.get({}, function(data){
+                var tempIndex = -1, hugoGenes = [], inputAlterations = [];
+                for(var i = 0;i < data.length;i++){
+                    tempIndex = _.map(allAlterations, function(item){return item.gene;}).indexOf(data[i].gene);
+                    if(tempIndex === -1){
+                        allAlterations.push({gene: data[i].gene, alterations: [data[i].alteration]});
+                        hugoGenes.push(data[i].gene);
+
+                    }else{
+                        allAlterations[tempIndex].alterations.push(data[i].alteration);
+                    }
+                    inputAlterations.push(data[i].alteration);
+
+                }
+                $scope.HUGOgenes = hugoGenes.sort();
+                $scope.inputAlterations = _.uniq(inputAlterations).sort();
+
+            });
+        }
     }
 ]);
